@@ -6,7 +6,7 @@
 
 //'Up Befehl nur wenn Etage = 0-2'
 //ltl {[](motorcom==up -> (lastfloor==0 || lastfloor==1 || lastfloor==2))}
-//'Down Befehl nur wenn Etage = 1-3
+//'Down Befehl nur wenn Etage = 1-3'
 //ltl {[](motorcom==down -> (lastfloor==1 || lastfloor==2 || lastfloor==3))}
 
 //Close und Open siehe doorproc
@@ -14,10 +14,10 @@
 //'Aufzug faehrt nie mit offener Tuer' siehe motorproc
 
 //'Wenn Knopf gedrueckt, dann haelt aufzug dort mit offener tuer'
-//ltl {[](buttons[0]==1 -> <>(floor==0 && door==0))}
-//ltl {[](buttons[1]==1 -> <>(floor==1 && door==0))}
-//ltl {[](buttons[2]==1 -> <>(floor==2 && door==0))}
-ltl {[](buttons[3]==1 -> <>(floor==3 && door==0))}
+//ltl {[](buttons[0] -> <>(floor==0 && door==0))}
+//ltl {[](buttons[1] -> <>(floor==1 && door==0))}
+//ltl {[](buttons[2] -> <>(floor==2 && door==0))}
+ltl reachfloor4 {[](buttons[3] -> <>(floor==3 && door==0))}
 
 byte floor; //floor the elevator is on
 bit door; //0 open, 1 closed
@@ -36,13 +36,12 @@ chan motorchan = [0] of {mtype}
 chan doorack = [0] of {bool}
 chan motorack = [0] of {bool}
 
-
 proctype controlproc(){
 	do
 	:: true ->
 			for(i, 0, 3)
 				if
-				:: buttons[i] == 1 ->
+				:: buttons[i] ->
 						if
 						:: door == 0 ->
 													doorchan ! close;
@@ -52,10 +51,30 @@ proctype controlproc(){
 						do
 						:: i > floor -> 
 													motorchan ! up;
-													motorack ? _
+													motorack ? _;
+													//Stop in current floor, if button for this floor is pressed
+													if
+													:: buttons[floor] ->
+															doorchan ! open;
+															doorack ? _;
+															doorchan ! close;
+															doorack ? _;
+															buttons[floor] = 0;
+													:: true -> skip
+													fi
 						:: i < floor ->
 													motorchan ! down;
-													motorack ? _
+													motorack ? _;
+													//Stop in current floor, if button for this floor is pressed
+													if
+													:: buttons[floor] ->
+															doorchan ! open;
+															doorack ? _;
+															doorchan ! close;
+															doorack ? _;
+															buttons[floor] = 0;
+													:: true -> skip
+													fi
 						:: else -> break;
 						od
 						if //open door if not already open

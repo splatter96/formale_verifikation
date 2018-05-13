@@ -1,6 +1,7 @@
 //Aufgabenblatt 4 Aufgabe 7
 
-ltl {[]<>received && []<>sent}
+ltl noerrors {[]<>received && []<>sent}
+//ltl noerros {[]<>received && false}
 
 chan messchan = [0] of {bit, byte}
 chan ackchan = [0] of {bit}
@@ -10,7 +11,7 @@ bit sent;
 
 proctype sender(){
 	bit control;
-	byte message = 42;
+	byte message = 0;
 
 	bit ack;
 
@@ -21,21 +22,28 @@ proctype sender(){
 			messchan ! control, message;
 			ackchan ? ack;
 
+			//Nondeterministc choice to corrupt packet
+			if
+			:: true -> ack = ack
+			:: true -> ack = !ack
+			fi
+
 			do
 			:: ack == control -> break;
 			:: else ->
 						messchan ! control, message;
 						ackchan ? ack;
 
-						
 						//Nondeterministc choice to corrupt packet
 						if
 						:: true -> ack = ack
 						:: true -> ack = !ack
 						fi
+
 			od
 			control = !control;
-			sent = 1;			
+			sent = 1;		
+			message = message + 1;	
 	od
 
 }
@@ -51,18 +59,22 @@ proctype receiver(){
 			received = 0;
 			messchan ? control, message;
 
-			
 			//Nondeterministc choice to corrupt packet
 			if
-				:: true -> control = control
-				:: true -> control = !control
+			:: true -> control = control
+			:: true -> control = !control
 			fi
-
+			
 			do
 			:: control == expcontrol -> break;
 			:: else -> 
 							ackchan ! expcontrol
 							messchan ? control, message
+							//Nondeterministc choice to corrupt packet
+							if
+								:: true -> control = control
+								:: true -> control = !control
+							fi
 			od
 
 			received = 1;
